@@ -234,10 +234,21 @@ angular.module('ui.bootstrap.modal', [])
         scope.animate = false;
 
         if (domEl.attr('modal-animation') && $animate.enabled()) {
-          // transition out
-          domEl.one('$animate:close', function closeFn() {
-            $rootScope.$evalAsync(afterAnimating);
-          });
+          // transition out, angular 1.4 or <1.4?
+          if ($animate.on) {
+              // angular 1.4. use $animiate.on to capture a removeClass event in the "close" phase to detect the
+              // completion of the animation.
+            $animate.on('removeClass', domEl, function closeFn(element, phase) {
+              if (phase === 'close') {
+                $rootScope.$evalAsync(afterAnimating);
+              }
+            });
+          } else {
+              // angular <1.4 pickup the "close" event from the element to detect the completion of the animation.
+            domEl.one('$animate:close', function closeFn() {
+              $rootScope.$evalAsync(afterAnimating);
+            });
+          }
         } else {
           // Ensure this call is async
           $timeout(afterAnimating);
@@ -248,6 +259,11 @@ angular.module('ui.bootstrap.modal', [])
             return;
           }
           afterAnimating.done = true;
+
+          // angular 1.4 doesn't have a oneOff function, so we have to remove the event listener manually.
+          if ($animate.off) {
+              $animate.off('removeClass', domEl);
+          }
 
           domEl.remove();
           scope.$destroy();
